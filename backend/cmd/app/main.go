@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/ilexsor/internal/database"
 	"github.com/ilexsor/internal/handlers"
 	"github.com/ilexsor/internal/utils"
 	log "github.com/sirupsen/logrus"
@@ -13,11 +14,17 @@ import (
 
 const (
 	frontendDir = http.Dir("../../../web")
+	dbFile      = "../../internal/database/scheduler.db"
 )
 
 func main() {
 	port := utils.GetServerPort()
 	log.SetFormatter(&log.JSONFormatter{})
+
+	_, err := database.NewSqliteDB(dbFile)
+	if err != nil {
+		return
+	}
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -32,4 +39,5 @@ func main() {
 		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
 		return
 	}
+
 }

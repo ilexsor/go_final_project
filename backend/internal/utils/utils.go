@@ -4,8 +4,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/ilexsor/internal/models"
+	"gorm.io/gorm"
 )
 
+// GetServerPort функция получения номера порта из переменной окружения TODO_PORT
+// Значение по-усолчанию :7540
 func GetServerPort() string {
 	defaultPort := ":7540"
 
@@ -29,4 +35,17 @@ func GetServerPort() string {
 
 	// Если порт задан как "8080", добавляем ":" в начало
 	return ":" + port
+}
+
+// Миграция структуры в БД
+func Migrate(db *gorm.DB) error {
+	return db.AutoMigrate(&models.Scheduler{})
+}
+
+// ConfigureDB функция для конфигурации соединений к БД
+func ConfigureDB(dataBase *gorm.DB) {
+	sqliteDB, _ := dataBase.DB()
+	sqliteDB.SetMaxOpenConns(1)
+	sqliteDB.SetMaxIdleConns(0)
+	sqliteDB.SetConnMaxLifetime(time.Minute * 5)
 }
