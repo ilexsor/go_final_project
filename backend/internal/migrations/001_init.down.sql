@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_date;
+
+DROP TABLE IF EXISTS schedulers;

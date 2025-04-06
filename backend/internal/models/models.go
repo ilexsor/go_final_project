@@ -9,3 +9,7 @@ type Scheduler struct {
 	Comment string    `gorm:"type:text"`
 	Repeat  string    `gorm:"type:varchar(100)"`
 }
+
+func (Scheduler) TableName() string {
+    return "scheduler"
+}

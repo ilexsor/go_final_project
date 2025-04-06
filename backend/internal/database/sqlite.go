@@ -26,6 +26,10 @@ func NewSqliteDB(dbPath string) (*gorm.DB, error) {
 			return nil, fmt.Errorf("failed to connect database: %w", err)
 		}
 
+		log.WithFields(log.Fields{
+			"migrtation": "started",
+		}).Infof("starting migration %v", dbPath)
+
 		err = utils.Migrate(db)
 		if err != nil {
 
