@@ -88,13 +88,18 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 		return nextDateYearly(now, startDate), nil
 	case "w":
 		if len(parts) != 2 {
-			return "", errors.New("неверный формат для правила 'w'")
+			return "", errors.New("invalid w rule format")
 		}
-		days, err := parseWeekDays(parts[1])
-		if err != nil {
-			return "", err
+		daysStr := strings.Split(parts[1], ",")
+		weekdays := make([]int, 0, len(daysStr))
+		for _, dayStr := range daysStr {
+			day, err := strconv.Atoi(dayStr)
+			if err != nil || day < 1 || day > 7 {
+				return "", errors.New("invalid weekday in w rule")
+			}
+			weekdays = append(weekdays, day)
 		}
-		return nextDateWeekly(now, startDate, days)
+		return findNextWeekday(startDate, now, weekdays).Format("20060102"), nil
 	case "m":
 		if len(parts) < 2 {
 			return "", errors.New("неверный формат для правила 'm'")
@@ -114,7 +119,7 @@ func nextDateDaily(now, startDate time.Time, days int) string {
 	for !date.After(now) {
 		date = date.AddDate(0, 0, days)
 	}
-	return date.Format("20060102")
+	return date.AddDate(0, 0, days).Format("20060102")
 }
 
 func nextDateYearly(now, startDate time.Time) string {
@@ -122,49 +127,40 @@ func nextDateYearly(now, startDate time.Time) string {
 	for !date.After(now) {
 		date = date.AddDate(1, 0, 0)
 	}
-	return date.Format("20060102")
+	return date.AddDate(1, 0, 0).Format("20060102")
 }
 
-func parseWeekDays(s string) ([]int, error) {
-	parts := strings.Split(s, ",")
-	days := make([]int, 0, len(parts))
-	for _, part := range parts {
-		d, err := strconv.Atoi(strings.TrimSpace(part))
-		if err != nil || d < 1 || d > 7 {
-			return nil, errors.New("недопустимый день недели")
-		}
-		days = append(days, d)
-	}
-	return days, nil
-}
-
-func nextDateWeekly(now, startDate time.Time, weekDays []int) (string, error) {
-	date := startDate
-	for !date.After(now) {
-		// Находим следующий день недели
-		found := false
-		for i := 1; i <= 7; i++ {
-			next := date.AddDate(0, 0, i)
-			wd := int(next.Weekday())
-			if wd == 0 {
-				wd = 7 // Воскресенье как 7
+func findNextWeekday(startDate, now time.Time, weekdays []int) time.Time {
+	current := startDate
+	for current.Before(now) || current.Equal(now) {
+		// Check if current day is one of the target weekdays and after startDate
+		if current.After(startDate) {
+			currentWeekday := int(current.Weekday())
+			if currentWeekday == 0 {
+				currentWeekday = 7 // Sunday is 7 in our system
 			}
-			for _, d := range weekDays {
-				if wd == d {
-					date = next
-					found = true
-					break
+			for _, wd := range weekdays {
+				if currentWeekday == wd {
+					return current
 				}
 			}
-			if found {
-				break
+		}
+		current = current.AddDate(0, 0, 1)
+	}
+
+	// If we passed now, find the next weekday
+	for {
+		currentWeekday := int(current.Weekday())
+		if currentWeekday == 0 {
+			currentWeekday = 7
+		}
+		for _, wd := range weekdays {
+			if currentWeekday == wd {
+				return current
 			}
 		}
-		if !found {
-			return "", errors.New("не удалось найти следующий день недели")
-		}
+		current = current.AddDate(0, 0, 1)
 	}
-	return date.Format("20060102"), nil
 }
 
 func parseMonthRule(parts []string) ([]int, []int, error) {
