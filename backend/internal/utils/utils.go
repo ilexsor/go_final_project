@@ -11,6 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	DateFormat = "20060102"
+)
+
 // GetServerPort функция получения номера порта из переменной окружения TODO_PORT
 // Значение по-усолчанию :7540
 func GetServerPort() string {
@@ -57,7 +61,7 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 		return "", errors.New("пустое правило повторения")
 	}
 
-	startDate, err := time.Parse("20060102", dstart)
+	startDate, err := time.Parse(DateFormat, dstart)
 	if err != nil {
 		return "", errors.New("некорректная дата начала")
 	}
@@ -99,7 +103,7 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 			}
 			weekdays = append(weekdays, day)
 		}
-		return findNextWeekday(startDate, now, weekdays).Format("20060102"), nil
+		return findNextWeekday(startDate, now, weekdays).Format(DateFormat), nil
 	case "m":
 		if len(parts) != 2 {
 			return "", errors.New("invalid m rule format")
@@ -117,7 +121,7 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 			monthDays = append(monthDays, day)
 		}
 		nextDate := findNextMonthDay(startDate, now, monthDays)
-		return nextDate.Format("20060102"), nil
+		return nextDate.Format(DateFormat), nil
 	default:
 		return "", errors.New("неподдерживаемый формат правила повторения")
 	}
@@ -127,33 +131,33 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 func nextDateDaily(now, startDate time.Time, days int) string {
 
 	if startDate.Compare(now) == 0 {
-		return startDate.AddDate(0, 0, days).Format("20060102")
+		return startDate.AddDate(0, 0, days).Format(DateFormat)
 	}
 
 	if startDate.After(now) {
-		return startDate.AddDate(0, 0, days).Format("20060102")
+		return startDate.AddDate(0, 0, days).Format(DateFormat)
 	}
 	for !startDate.After(now) {
 		startDate = startDate.AddDate(0, 0, days)
 	}
-	return startDate.Format("20060102")
+	return startDate.Format(DateFormat)
 }
 
 // Case "y" задача выполняется ежегодно
 func nextDateYearly(now, startDate time.Time) string {
 
-	if startDate.Format("20060102") == now.Format("20060102") {
-		return startDate.AddDate(1, 0, 0).Format("20060102")
+	if startDate.Format("20060102") == now.Format(DateFormat) {
+		return startDate.AddDate(1, 0, 0).Format(DateFormat)
 	}
 
 	if startDate.After(now) {
-		return startDate.AddDate(1, 0, 0).Format("20060102")
+		return startDate.AddDate(1, 0, 0).Format(DateFormat)
 	}
 
 	for !startDate.After(now) {
 		startDate = startDate.AddDate(1, 0, 0)
 	}
-	return startDate.Format("20060102")
+	return startDate.Format(DateFormat)
 }
 
 // Case "w" задача выполняется в указанные дни месяца
@@ -427,7 +431,7 @@ func nextDateMonthly(now, startDate time.Time, monthDays, months []int) (string,
 		date = time.Date(nextYear, time.Month(nextMonth), nextDay, 0, 0, 0, 0, time.UTC)
 	}
 
-	return date.Format("20060102"), nil
+	return date.Format(DateFormat), nil
 }
 
 func daysInMonth(year int, month time.Month) int {
