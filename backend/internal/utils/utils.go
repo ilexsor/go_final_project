@@ -92,31 +92,31 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 		return nextDateYearly(now, startDate), nil
 	case "w":
 		if len(parts) != 2 {
-			return "", errors.New("invalid w rule format")
+			return "", errors.New("не верный формат правила w")
 		}
 		daysStr := strings.Split(parts[1], ",")
 		weekdays := make([]int, 0, len(daysStr))
 		for _, dayStr := range daysStr {
 			day, err := strconv.Atoi(dayStr)
 			if err != nil || day < 1 || day > 7 {
-				return "", errors.New("invalid weekday in w rule")
+				return "", errors.New("не верный день недели в парвиле w")
 			}
 			weekdays = append(weekdays, day)
 		}
 		return findNextWeekday(startDate, now, weekdays).Format(DateFormat), nil
 	case "m":
 		if len(parts) != 2 {
-			return "", errors.New("invalid m rule format")
+			return "", errors.New("не верный формат правила m")
 		}
 		daysStr := strings.Split(parts[1], ",")
 		monthDays := make([]int, 0, len(daysStr))
 		for _, dayStr := range daysStr {
 			day, err := strconv.Atoi(dayStr)
 			if err != nil {
-				return "", errors.New("invalid day in m rule")
+				return "", errors.New("не верный день в парвиле m")
 			}
 			if day < -31 || day == 0 || day > 31 {
-				return "", errors.New("invalid day in m rule")
+				return "", errors.New("не верный день в парвиле m")
 			}
 			monthDays = append(monthDays, day)
 		}
