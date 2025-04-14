@@ -1,11 +1,11 @@
 package utils
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	"errors"
 
 	"github.com/ilexsor/internal/models"
 	"gorm.io/gorm"
@@ -101,35 +101,62 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 		}
 		return findNextWeekday(startDate, now, weekdays).Format("20060102"), nil
 	case "m":
-		if len(parts) < 2 {
-			return "", errors.New("неверный формат для правила 'm'")
+		if len(parts) != 2 {
+			return "", errors.New("invalid m rule format")
 		}
-		monthDays, months, err := parseMonthRule(parts[1:])
-		if err != nil {
-			return "", err
+		daysStr := strings.Split(parts[1], ",")
+		monthDays := make([]int, 0, len(daysStr))
+		for _, dayStr := range daysStr {
+			day, err := strconv.Atoi(dayStr)
+			if err != nil {
+				return "", errors.New("invalid day in m rule")
+			}
+			if day < -31 || day == 0 || day > 31 {
+				return "", errors.New("invalid day in m rule")
+			}
+			monthDays = append(monthDays, day)
 		}
-		return nextDateMonthly(now, startDate, monthDays, months)
+		nextDate := findNextMonthDay(startDate, now, monthDays)
+		return nextDate.Format("20060102"), nil
 	default:
 		return "", errors.New("неподдерживаемый формат правила повторения")
 	}
 }
 
+// Case "d"  задача переносится на указанное число дней
 func nextDateDaily(now, startDate time.Time, days int) string {
-	date := startDate
-	for !date.After(now) {
-		date = date.AddDate(0, 0, days)
+
+	if startDate.Compare(now) == 0 {
+		return startDate.AddDate(0, 0, days).Format("20060102")
 	}
-	return date.AddDate(0, 0, days).Format("20060102")
+
+	if startDate.After(now) {
+		return startDate.AddDate(0, 0, days).Format("20060102")
+	}
+	for !startDate.After(now) {
+		startDate = startDate.AddDate(0, 0, days)
+	}
+	return startDate.Format("20060102")
 }
 
+// Case "y" задача выполняется ежегодно
 func nextDateYearly(now, startDate time.Time) string {
-	date := startDate
-	for !date.After(now) {
-		date = date.AddDate(1, 0, 0)
+
+	if startDate.Format("20060102") == now.Format("20060102") {
+		return startDate.AddDate(1, 0, 0).Format("20060102")
 	}
-	return date.AddDate(1, 0, 0).Format("20060102")
+
+	if startDate.After(now) {
+		return startDate.AddDate(1, 0, 0).Format("20060102")
+	}
+
+	for !startDate.After(now) {
+		startDate = startDate.AddDate(1, 0, 0)
+	}
+	return startDate.Format("20060102")
 }
 
+// Case "w" задача выполняется в указанные дни месяца
 func findNextWeekday(startDate, now time.Time, weekdays []int) time.Time {
 	current := startDate
 	for current.Before(now) || current.Equal(now) {
@@ -161,6 +188,112 @@ func findNextWeekday(startDate, now time.Time, weekdays []int) time.Time {
 		}
 		current = current.AddDate(0, 0, 1)
 	}
+}
+
+// Case "m" задача назначается на указанные дни месяца
+func findNextMonthDay(startDate, now time.Time, monthDays []int) time.Time {
+	current := startDate
+	for current.Before(now) || current.Equal(now) {
+		// Check if current day is one of the target days and after startDate
+		if current.After(startDate) {
+			day := current.Day()
+			for _, md := range monthDays {
+				if md > 0 && day == md {
+					return current
+				} else if md < 0 {
+					// Handle negative days (last days of month)
+					lastDay := daysInMonth(current.Year(), current.Month())
+					if day == lastDay+md+1 {
+						return current
+					}
+				}
+			}
+		}
+		// Move to the next candidate day
+		current = nextMonthDayCandidate(current, monthDays)
+	}
+
+	// If we passed now, find the next valid day
+	for {
+		day := current.Day()
+		for _, md := range monthDays {
+			if md > 0 && day == md {
+				return current
+			} else if md < 0 {
+				lastDay := daysInMonth(current.Year(), current.Month())
+				if day == lastDay+md+1 {
+					return current
+				}
+			}
+		}
+		current = nextMonthDayCandidate(current, monthDays)
+	}
+}
+
+func nextMonthDayCandidate(date time.Time, monthDays []int) time.Time {
+	// Find the smallest day in monthDays that is greater than current day
+	currentDay := date.Day()
+	year, month, _ := date.Date()
+
+	var found bool
+	var minPositive = 32
+	var maxNegative = -32
+
+	for _, md := range monthDays {
+		if md > 0 {
+			if md > currentDay && md < minPositive {
+				minPositive = md
+				found = true
+			}
+		} else {
+			if md > maxNegative {
+				maxNegative = md
+			}
+		}
+	}
+
+	if found {
+		daysInMonth := daysInMonth(year, month)
+		if minPositive > daysInMonth {
+			// Move to next month and find the first suitable day
+			return time.Date(year, month+1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		return time.Date(year, month, minPositive, 0, 0, 0, 0, time.UTC)
+	}
+
+	// If no positive days found, use the smallest positive or negative day in next month
+	if len(monthDays) > 0 {
+		nextMonth := month + 1
+		nextYear := year
+		if nextMonth > 12 {
+			nextMonth = 1
+			nextYear += 1
+		}
+
+		// Try positive days first
+		for _, md := range monthDays {
+			if md > 0 {
+				daysInNextMonth := daysInMonth(nextYear, nextMonth)
+				if md <= daysInNextMonth {
+					return time.Date(nextYear, nextMonth, md, 0, 0, 0, 0, time.UTC)
+				}
+			}
+		}
+
+		// If no positive days work, use negative days
+		for _, md := range monthDays {
+			if md < 0 {
+				daysInNextMonth := daysInMonth(nextYear, nextMonth)
+				day := daysInNextMonth + md + 1
+				if day > 0 {
+					return time.Date(nextYear, nextMonth, day, 0, 0, 0, 0, time.UTC)
+				}
+			}
+		}
+	}
+
+	// Fallback (shouldn't happen with proper validation)
+	return date.AddDate(0, 1, 0)
 }
 
 func parseMonthRule(parts []string) ([]int, []int, error) {
@@ -204,7 +337,7 @@ func nextDateMonthly(now, startDate time.Time, monthDays, months []int) (string,
 	for !date.After(now) {
 		// Получаем год и месяц текущей даты
 		year, month, _ := date.Date()
-		currentMonth := int(month)
+		currentMonth := month
 		currentDay := date.Day()
 
 		// Проверяем, есть ли ограничение по месяцам
@@ -224,7 +357,7 @@ func nextDateMonthly(now, startDate time.Time, monthDays, months []int) (string,
 				nextYear++
 			}
 			for _, m := range validMonths {
-				if nextMonth == m {
+				if nextMonth == time.Month(m) {
 					found = true
 					break
 				}
@@ -297,6 +430,6 @@ func nextDateMonthly(now, startDate time.Time, monthDays, months []int) (string,
 	return date.Format("20060102"), nil
 }
 
-func daysInMonth(year, month int) int {
+func daysInMonth(year int, month time.Month) int {
 	return time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
 }

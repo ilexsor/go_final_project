@@ -11,5 +11,5 @@ type Scheduler struct {
 }
 
 func (Scheduler) TableName() string {
-    return "scheduler"
+	return "scheduler"
 }

@@ -35,12 +35,12 @@ func main() {
 	// Подключаем CHI router
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
-	
-	router.Route("/api", func(router chi.Router){
+
+	router.Route("/api", func(router chi.Router) {
 		router.Get("/nextdate", handlers.NextDayHandler)
+		router.Post("/task", handlers.AddTask)
 	})
-	
-	
+
 	handlers.FileServer(router, "/", frontendDir)
 
 	log.WithFields(log.Fields{
