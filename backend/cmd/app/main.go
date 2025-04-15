@@ -24,7 +24,7 @@ func main() {
 	log.SetFormatter(&log.JSONFormatter{})
 
 	// Инициализируем БД
-	_, err := database.NewSqliteDB(dbFile)
+	db, err := database.NewSqliteDB(dbFile)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"migration": "migration error",
@@ -38,7 +38,7 @@ func main() {
 
 	router.Route("/api", func(router chi.Router) {
 		router.Get("/nextdate", handlers.NextDayHandler)
-		router.Post("/task", handlers.AddTask)
+		router.Post("/task", handlers.AddTask(db))
 	})
 
 	handlers.FileServer(router, "/", frontendDir)
