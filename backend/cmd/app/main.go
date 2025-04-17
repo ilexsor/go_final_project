@@ -42,6 +42,8 @@ func main() {
 		router.Get("/tasks", handlers.GetTasks(db))
 		router.Get("/task", handlers.GetTask(db))
 		router.Put("/task", handlers.PutTask(db))
+		router.Post("/task/done", handlers.DoneTask(db))
+		router.Delete("/task", handlers.DeleteTask(db))
 	})
 
 	handlers.FileServer(router, "/", frontendDir)

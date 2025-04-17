@@ -26,6 +26,7 @@ const (
 	GetTasksError          = "ошибка получения заявок"
 	GetTaskError           = "ошибка получения заявки"
 	IdFormatError          = "не верный формат id задачи"
+	DeleteTaskError        = "ошибка удаления заявки"
 )
 
 type ResponseError struct {
