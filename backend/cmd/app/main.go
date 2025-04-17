@@ -39,6 +39,9 @@ func main() {
 	router.Route("/api", func(router chi.Router) {
 		router.Get("/nextdate", handlers.NextDayHandler)
 		router.Post("/task", handlers.AddTask(db))
+		router.Get("/tasks", handlers.GetTasks(db))
+		router.Get("/task", handlers.GetTask(db))
+		router.Put("/task", handlers.PutTask(db))
 	})
 
 	handlers.FileServer(router, "/", frontendDir)

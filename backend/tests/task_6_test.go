@@ -37,6 +37,8 @@ func TestTask(t *testing.T) {
 		"Ожидается ошибка для вызова /api/task")
 
 	body, err = requestJSON("api/task?id="+todo, nil, http.MethodGet)
+	fmt.Println(string(body))
+	fmt.Println(err)
 	assert.NoError(t, err)
 	err = json.Unmarshal(body, &m)
 	assert.NoError(t, err)

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ilexsor/internal/models"
-	"gorm.io/gorm"
 )
 
 const (
@@ -16,7 +15,7 @@ const (
 )
 
 // GetServerPort функция получения номера порта из переменной окружения TODO_PORT
-// Значение по-усолчанию :7540
+// Значение по-умолчанию :7540
 func GetServerPort() string {
 	defaultPort := ":7540"
 
@@ -42,19 +41,6 @@ func GetServerPort() string {
 	return ":" + port
 }
 
-// Миграция структуры в БД
-func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&models.Scheduler{})
-}
-
-// ConfigureDB функция для конфигурации соединений к БД
-func ConfigureDB(dataBase *gorm.DB) {
-	sqliteDB, _ := dataBase.DB()
-	sqliteDB.SetMaxOpenConns(1)
-	sqliteDB.SetMaxIdleConns(0)
-	sqliteDB.SetConnMaxLifetime(time.Minute * 5)
-}
-
 // NextDate Вычисляет следующую дату для задачи
 func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	if repeat == "" {
@@ -63,67 +49,91 @@ func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 
 	startDate, err := time.Parse(DateFormat, dstart)
 	if err != nil {
-		return "", errors.New("некорректная дата начала")
+		return "", models.ResponseError{
+			MyError: models.DateError,
+		}
 	}
 
 	parts := strings.Fields(repeat)
 	if len(parts) == 0 {
-		return "", errors.New("неверный формат правила повторения")
+		return "", models.ResponseError{
+			MyError: models.RepeatRuleError,
+		}
 	}
 
 	rule := parts[0]
 	switch rule {
 	case "d":
 		if len(parts) != 2 {
-			return "", errors.New("неверный формат для правила 'd'")
+			return "", models.ResponseError{
+				MyError: models.RuleDError,
+			}
 		}
 		days, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return "", errors.New("неверное количество дней")
+			return "", models.ResponseError{
+				MyError: models.RuleDDateIntervalError,
+			}
 		}
 		if days <= 0 || days > 400 {
-			return "", errors.New("недопустимый интервал в днях")
+			return "", models.ResponseError{
+				MyError: models.RuleDDateIntervalError,
+			}
 		}
 		return nextDateDaily(now, startDate, days), nil
 	case "y":
 		if len(parts) != 1 {
-			return "", errors.New("неверный формат для правила 'y'")
+			return "", models.ResponseError{
+				MyError: models.RuleYError,
+			}
 		}
 		return nextDateYearly(now, startDate), nil
 	case "w":
 		if len(parts) != 2 {
-			return "", errors.New("не верный формат правила w")
+			return "", models.ResponseError{
+				MyError: models.RuleWError,
+			}
 		}
 		daysStr := strings.Split(parts[1], ",")
 		weekdays := make([]int, 0, len(daysStr))
 		for _, dayStr := range daysStr {
 			day, err := strconv.Atoi(dayStr)
 			if err != nil || day < 1 || day > 7 {
-				return "", errors.New("не верный день недели в парвиле w")
+				return "", models.ResponseError{
+					MyError: models.RuleWWeekDayError,
+				}
 			}
 			weekdays = append(weekdays, day)
 		}
 		return findNextWeekday(startDate, now, weekdays).Format(DateFormat), nil
 	case "m":
 		if len(parts) != 2 {
-			return "", errors.New("не верный формат правила m")
+			return "", models.ResponseError{
+				MyError: models.RuleMError,
+			}
 		}
 		daysStr := strings.Split(parts[1], ",")
 		monthDays := make([]int, 0, len(daysStr))
 		for _, dayStr := range daysStr {
 			day, err := strconv.Atoi(dayStr)
 			if err != nil {
-				return "", errors.New("не верный день в парвиле m")
+				return "", models.ResponseError{
+					MyError: models.RuleMDayError,
+				}
 			}
 			if day < -31 || day == 0 || day > 31 {
-				return "", errors.New("не верный день в парвиле m")
+				return "", models.ResponseError{
+					MyError: models.RuleMDayError,
+				}
 			}
 			monthDays = append(monthDays, day)
 		}
 		nextDate := findNextMonthDay(startDate, now, monthDays)
 		return nextDate.Format(DateFormat), nil
 	default:
-		return "", errors.New("неподдерживаемый формат правила повторения")
+		return "", models.ResponseError{
+			MyError: models.RepeatRuleError,
+		}
 	}
 }
 
@@ -436,4 +446,15 @@ func nextDateMonthly(now, startDate time.Time, monthDays, months []int) (string,
 
 func daysInMonth(year int, month time.Month) int {
 	return time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+func CheckId(value string) bool {
+	id, err := strconv.Atoi(value)
+	if id > 1000 {
+		return false
+	}
+	if err != nil {
+		return false
+	}
+	return true
 }

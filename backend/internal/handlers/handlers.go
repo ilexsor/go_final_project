@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+
+	//"fmt"
+	"bytes"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -39,11 +42,18 @@ func NextDayHandler(w http.ResponseWriter, r *http.Request) {
 	repeat := query.Get("repeat")
 
 	if nowStr == "" {
-		nowStr = time.Now().Format("20060102")
+		nowStr = time.Now().Format(utils.DateFormat)
 	}
 
 	if repeat == "" {
-		http.Error(w, "Parameter 'repeat' are required", http.StatusBadRequest)
+		errorText, _ := json.Marshal(models.ResponseError{
+			MyError: models.RepeatParamError,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(errorText)
+
 		log.WithFields(log.Fields{
 			"now":    nowStr,
 			"date":   dstart,
@@ -52,9 +62,16 @@ func NextDayHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now, err := time.Parse("20060102", nowStr)
+	now, err := time.Parse(utils.DateFormat, nowStr)
 	if err != nil {
-		http.Error(w, "Invalid 'now' date format (expected YYYYMMDD)", http.StatusBadRequest)
+		errorText, _ := json.Marshal(models.ResponseError{
+			MyError: models.DateError,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(errorText)
+
 		log.WithFields(log.Fields{
 			"now":    nowStr,
 			"date":   dstart,
@@ -63,8 +80,16 @@ func NextDayHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := time.Parse("20060102", dstart); err != nil {
-		http.Error(w, "Invalid 'dstart' date format", http.StatusBadRequest)
+	if _, err := time.Parse(utils.DateFormat, dstart); err != nil {
+
+		errorText, _ := json.Marshal(models.ResponseError{
+			MyError: models.DateError,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(errorText)
+
 		log.WithFields(log.Fields{
 			"now":    nowStr,
 			"date":   dstart,
@@ -84,52 +109,301 @@ func NextDayHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(nextDate))
 }
 
-// Обработчик для /api/task
+// Обработчик для POST /api/task
 func AddTask(db *gorm.DB) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
+		var buf bytes.Buffer
+		task := &models.Task{}
+		taskResponse := &models.TaskResponse{}
+		schedule := &models.Scheduler{}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
-		log.WithFields(log.Fields{
-			"addTask": "incoming request",
-		}).Infof("request:%v", r.URL.String())
-
-		task := models.Scheduler{}
-		body, err := io.ReadAll(r.Body)
-		log.WithFields(log.Fields{
-			"body": body,
-		}).Error()
-
+		_, err := buf.ReadFrom(r.Body)
 		if err != nil {
 			log.WithFields(log.Fields{
-				"readBody": "error",
-			}).Errorf("request:%v", r.URL.String())
+				"readBody": err,
+			}).Error()
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.RequestBodyError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
 		}
 
-		err = json.Unmarshal(body, &task)
+		if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.UnmarshalError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		task, err = utils.CheckTask(task)
+		if err != nil {
+
+			errorText, _ := json.Marshal(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		schedule, err = utils.ConvertTaskToSchedule(task, schedule)
 		if err != nil {
 			log.WithFields(log.Fields{
-				"unmarshal": "error",
+				"convertTask": "error",
 			}).Errorf("error:%v", err)
-			http.Error(w, "Ошибка анмаршаллинга", http.StatusBadRequest)
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.ConvertationError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
 			return
+
 		}
 
-		tx := db.WithContext(ctx).Create(&task)
+		tx := db.WithContext(ctx).Create(&schedule)
 		if tx.Error != nil {
-			http.Error(w, "Ошибка при сохранении задачи", http.StatusInternalServerError)
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.SaveTaskError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+		id := strconv.Itoa(schedule.ID)
+		taskResponse.ID = id
+
+		response, err := json.Marshal(taskResponse)
+
+		if err != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.MarshalError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
 			return
 		}
 
-		response, err := json.Marshal(fmt.Sprintf("id:\"%v\"", task.ID))
-		if err != nil {
-			http.Error(w, "Ошибка анмаршаллинга", http.StatusInternalServerError)
-			return
-		}
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write(response)
+	}
+}
+
+// Обработчик для GET /api/tasks
+func GetTasks(db *gorm.DB) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var schedules []models.Schedule
+		response := models.TasksResponse{
+			Tasks: []models.Schedule{},
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		tx := db.WithContext(ctx).Limit(models.TaskLimit).Find(&schedules)
+
+		if tx.Error != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.GetTasksError,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+		}
+
+		response.Tasks = schedules
+		resp, err := json.Marshal(response)
+
+		if err != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.MarshalError,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	}
+}
+
+// Обработчик для GET /api/task/?id={id}
+func GetTask(db *gorm.DB) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		task := models.Task{}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		id := r.URL.Query().Get("id")
+
+		tx := db.WithContext(ctx).Where("id = ?", id).First(&task)
+
+		if tx.Error != nil {
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.GetTaskError,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+		}
+
+		resp, err := json.Marshal(task)
+
+		if err != nil {
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.MarshalError,
+			})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	}
+}
+
+func PutTask(db *gorm.DB) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var buf bytes.Buffer
+		schedule := &models.Scheduler{}
+		task := &models.Task{}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		_, err := buf.ReadFrom(r.Body)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"readBody": err,
+			}).Error()
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.RequestBodyError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.UnmarshalError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		task, err = utils.CheckTask(task)
+		fmt.Println(task)
+		if err != nil {
+
+			errorText, _ := json.Marshal(err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		if !utils.CheckId(task.ID) {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.IdFormatError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+
+		}
+
+		schedule, err = utils.ConvertTaskToSchedule(task, schedule)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"convertTask": "error",
+			}).Errorf("error:%v", err)
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.ConvertationError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+			return
+
+		}
+
+		tx := db.WithContext(ctx).Save(&schedule)
+		if tx.Error != nil {
+
+			errorText, _ := json.Marshal(models.ResponseError{
+				MyError: models.SaveTaskError,
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(errorText)
+
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("{}"))
 	}
 }

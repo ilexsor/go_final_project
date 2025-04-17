@@ -3,12 +3,26 @@ package database
 import (
 	"fmt"
 	"os"
+	"time"
 
-	"github.com/ilexsor/internal/utils"
+	"github.com/ilexsor/internal/models"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+// Миграция структуры в БД
+func Migrate(db *gorm.DB) error {
+	return db.AutoMigrate(&models.Scheduler{})
+}
+
+// ConfigureDB функция для конфигурации соединений к БД
+func ConfigureDB(dataBase *gorm.DB) {
+	sqliteDB, _ := dataBase.DB()
+	sqliteDB.SetMaxOpenConns(1)
+	sqliteDB.SetMaxIdleConns(0)
+	sqliteDB.SetConnMaxLifetime(time.Minute * 5)
+}
 
 // NewSqliteDB функция для создания БД и миграции
 func NewSqliteDB(dbPath string) (*gorm.DB, error) {
@@ -30,7 +44,7 @@ func NewSqliteDB(dbPath string) (*gorm.DB, error) {
 			"migrtation": "started",
 		}).Infof("starting migration %v", dbPath)
 
-		err = utils.Migrate(db)
+		err = Migrate(db)
 		if err != nil {
 
 			log.WithFields(log.Fields{
@@ -40,7 +54,7 @@ func NewSqliteDB(dbPath string) (*gorm.DB, error) {
 			return nil, fmt.Errorf("failed to migrate database: %w", err)
 		}
 
-		utils.ConfigureDB(db)
+		ConfigureDB(db)
 		return db, nil
 	}
 
@@ -55,7 +69,7 @@ func NewSqliteDB(dbPath string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	utils.ConfigureDB(db)
+	ConfigureDB(db)
 	return db, nil
 
 }
