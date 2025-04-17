@@ -1,0 +1,52 @@
+# Исключаем скомпилированные бинарники
+/bin/
+/*.exe
+/*.out
+
+# Исключаем файлы IDE и редакторов
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# Исключаем кэш модулей Go
+/go.sum
+/go.mod
+
+# Исключаем папку vendor (если используется)
+/vendor/
+
+# Исключаем тестовые и временные файлы
+*.test
+*.prof
+*.pprof
+*.log
+*.tmp
+
+# Исключаем файлы баз данных
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+*.sql
+/pgdata/
+/mysql-data/
+/mongo-data/
+
+# Исключаем конфигурационные файлы с чувствительными данными
+.env
+*.env
+/configs/*.yaml
+/configs/*.json
+/secrets/
+
+# Исключаем сгенерированные файлы
+/generated/
+/protoc-gen/
+*.pb.go
+
+# Исключаем системные файлы
+.DS_Store
+Thumbs.db

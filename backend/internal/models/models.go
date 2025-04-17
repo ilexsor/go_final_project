@@ -4,7 +4,8 @@ const (
 	TaskLimit = 50
 )
 
-// Структурв для миграции
+// Структура для миграции и корректного добавления таски в БД
+// ID int в остальных случаях string
 type Scheduler struct {
 	ID      int    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Date    string `gorm:"index:idx_date" json:"date"`
@@ -14,19 +15,6 @@ type Scheduler struct {
 }
 
 func (Scheduler) TableName() string {
-	return "scheduler"
-}
-
-// Структура для сериализации
-type Schedule struct {
-	ID      string `json:"id"`
-	Date    string `json:"date"`
-	Title   string `json:"title"`
-	Comment string `json:"comment"`
-	Repeat  string `json:"repeat"`
-}
-
-func (Schedule) TableName() string {
 	return "scheduler"
 }
 
@@ -49,5 +37,5 @@ type TaskResponse struct {
 
 // Структура для ответа списком тасок
 type TasksResponse struct {
-	Tasks []Schedule `json:"tasks"`
+	Tasks []Task `json:"tasks"`
 }
