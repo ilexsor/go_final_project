@@ -9,6 +9,7 @@ import (
 	"github.com/ilexsor/internal/database"
 	"github.com/ilexsor/internal/handlers"
 	"github.com/ilexsor/internal/utils"
+	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -18,6 +19,14 @@ const (
 )
 
 func main() {
+
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"env": "load env error",
+		}).Errorf("error: %v", err)
+		return
+	}
 	// Читаем переменную среды для порта
 	port := utils.GetServerPort()
 
@@ -37,6 +46,9 @@ func main() {
 	router.Use(middleware.Logger)
 
 	router.Route("/api", func(router chi.Router) {
+
+		router.Use(handlers.AuthMiddleware)
+
 		router.Get("/nextdate", handlers.NextDayHandler)
 		router.Post("/task", handlers.AddTask(db))
 		router.Get("/tasks", handlers.GetTasks(db))
@@ -45,6 +57,8 @@ func main() {
 		router.Post("/task/done", handlers.DoneTask(db))
 		router.Delete("/task", handlers.DeleteTask(db))
 	})
+
+	router.Post("/api/signin", handlers.Signin)
 
 	handlers.FileServer(router, "/", frontendDir)
 

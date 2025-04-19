@@ -1,12 +1,15 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/ilexsor/internal/models"
 )
 
@@ -457,4 +460,21 @@ func CheckId(value string) bool {
 		return false
 	}
 	return true
+}
+
+// GetToken генерирует jwt токен
+func GetToken(pass string) string {
+
+	hashPswd := sha256.Sum256([]byte(pass))
+	secret := []byte("my_secret_key")
+	claims := jwt.MapClaims{
+		"passBase64": base64.StdEncoding.EncodeToString(hashPswd[:]),
+	}
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := jwtToken.SignedString(secret)
+
+	if err != nil {
+		return ""
+	}
+	return token
 }

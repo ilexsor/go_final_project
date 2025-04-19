@@ -27,6 +27,9 @@ const (
 	GetTaskError           = "ошибка получения заявки"
 	IdFormatError          = "не верный формат id задачи"
 	DeleteTaskError        = "ошибка удаления заявки"
+	IncorrectPassword      = "неверный пароль"
+	ReadCookieError        = "ошибка чтения cookie"
+	AuthRequired           = "требуется аутентификация"
 )
 
 type ResponseError struct {

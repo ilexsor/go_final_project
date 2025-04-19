@@ -39,3 +39,11 @@ type TaskResponse struct {
 type TasksResponse struct {
 	Tasks []Task `json:"tasks"`
 }
+
+type Auth struct {
+	Password string `json:"password"`
+}
+
+type Token struct {
+	Token string `json:"token"`
+}
