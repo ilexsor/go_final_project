@@ -3,7 +3,6 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 
@@ -15,7 +14,7 @@ import (
 func Signin(w http.ResponseWriter, r *http.Request) {
 
 	pass := os.Getenv("TODO_PASSWORD")
-	fmt.Println(pass)
+
 	if pass == "" {
 		errorText, _ := json.Marshal(models.ResponseError{
 			MyError: models.IncorrectPassword,

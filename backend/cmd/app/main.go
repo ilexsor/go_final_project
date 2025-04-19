@@ -15,7 +15,6 @@ import (
 
 const (
 	frontendDir = http.Dir("../../../web")
-	dbFile      = "../../internal/database/scheduler.db"
 )
 
 func main() {
@@ -29,6 +28,7 @@ func main() {
 	}
 	// Читаем переменную среды для порта
 	port := utils.GetServerPort()
+	dbFile := utils.GetDBPort()
 
 	log.SetFormatter(&log.JSONFormatter{})
 
@@ -49,7 +49,6 @@ func main() {
 
 		router.Use(handlers.AuthMiddleware)
 
-		router.Get("/nextdate", handlers.NextDayHandler)
 		router.Post("/task", handlers.AddTask(db))
 		router.Get("/tasks", handlers.GetTasks(db))
 		router.Get("/task", handlers.GetTask(db))
@@ -59,6 +58,7 @@ func main() {
 	})
 
 	router.Post("/api/signin", handlers.Signin)
+	router.Get("/api/nextdate", handlers.NextDayHandler)
 
 	handlers.FileServer(router, "/", frontendDir)
 

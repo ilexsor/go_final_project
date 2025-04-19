@@ -44,6 +44,18 @@ func GetServerPort() string {
 	return ":" + port
 }
 
+func GetDBPort() string {
+	defaultPath := "./scheduler.db"
+
+	dbPath := os.Getenv("TODO_DBFILE")
+
+	if dbPath == "" {
+		return defaultPath
+	}
+
+	return dbPath
+}
+
 // NextDate Вычисляет следующую дату для задачи
 func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	if repeat == "" {

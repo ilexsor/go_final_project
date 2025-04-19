@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/ilexsor/internal/models"
 	"github.com/ilexsor/internal/utils"
@@ -12,11 +12,16 @@ import (
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		cookie, err := r.Cookie("token")
-		pass := "123/"
+		pass := os.Getenv("TODO_PASSWORD")
+
+		if pass == "" || len(pass) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		token := utils.GetToken(pass)
-		fmt.Println(token)
+
+		cookie, err := r.Cookie("token")
 
 		if err != nil {
 			errorText, _ := json.Marshal(models.ResponseError{
