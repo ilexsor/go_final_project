@@ -36,8 +36,6 @@
 /mongo-data/
 
 # Исключаем конфигурационные файлы с чувствительными данными
-.env
-*.env
 /configs/*.yaml
 /configs/*.json
 /secrets/
