@@ -29,7 +29,7 @@ jobs:
       run: go mod tidy
 
     - name: Change to app directory
-      run: cd backend/cmp/app
+      run: cd backend/cmd/app
       
     - name: Run local server
       run: |
