@@ -29,7 +29,7 @@ jobs:
       run: go mod tidy
 
     - name: Run local server
-    working-directory: ./backend/cmd/app
+      working-directory: ./backend/cmd/app
       run: |
         CGO_ENABLED=1 GOOS=linux go run main.go &
         sleep 10
