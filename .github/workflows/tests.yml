@@ -29,12 +29,12 @@ jobs:
       run: go mod tidy
 
     - name: Change to app directory
-      run: cd backend/cmd/app
+      working-directory: ./backend/cmd/app
       
     - name: Run local server
       run: |
         CGO_ENABLED=1 GOOS=linux go run main.go &
         sleep 10
-        go test -count=1 -run ^TestApp$ ./tests
+        go test -count=1 -run ^TestApp$ ../../tests
         
         
