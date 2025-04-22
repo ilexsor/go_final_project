@@ -28,10 +28,8 @@ jobs:
       working-directory: ./backend
       run: go mod tidy
 
-    - name: Change to app directory
-      working-directory: ./backend/cmd/app
-      
     - name: Run local server
+    working-directory: ./backend/cmd/app
       run: |
         CGO_ENABLED=1 GOOS=linux go run main.go &
         sleep 10
