@@ -73,10 +73,10 @@ backend -
 - Все необходимые настройки уже есть в файле ./tests/settings.go
 - После запуска бэкенда нужно запусить тесты
 - Перейти в папку backend
-- ``` go test -v ./tests ```
+- ``` go clean -testcache && go test -v ./tests ```
 
 
 ## Инструкция для запуска контейнера
 0. Перейти в корень проекта
 1. ``` docker build -t taskManager:v1 . ```
-2. ```  docker run -d -p 7540:7540 --name taskManager taskManager:v1 ```
+2. ``` docker run -d -p 7540:7540 --name taskManager taskManager:v1 ```
