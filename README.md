@@ -78,5 +78,5 @@ backend -
 
 ## Инструкция для запуска контейнера
 0. Перейти в корень проекта
-1. ``` docker build -t taskManager:v1 . ```
-2. ``` docker run -d -p 7540:7540 --name taskManager taskManager:v1 ```
+1. ``` docker build -t task_manager:v1 . ```
+2. ``` docker run -d -p 7540:7540 --name taskManager task_manager:v1 ```
