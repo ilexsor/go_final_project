@@ -32,7 +32,7 @@ jobs:
       working-directory: ./backend/cmd/app
       run: |
         CGO_ENABLED=1 GOOS=linux go run main.go &
-        sleep 10
+        sleep 100
         go test -count=1 -run ^TestApp$ ../../tests
         
         
