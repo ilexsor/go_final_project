@@ -1,0 +1,75 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/ilexsor/internal/database"
+	"github.com/ilexsor/internal/handlers"
+	"github.com/ilexsor/internal/utils"
+	"github.com/joho/godotenv"
+	log "github.com/sirupsen/logrus"
+)
+
+const (
+	frontendDir = http.Dir("../../../web")
+)
+
+func main() {
+
+	err := godotenv.Load("../../.env")
+	if err != nil {
+		log.WithFields(log.Fields{
+			"env": "load env error",
+		}).Errorf("error: %v", err)
+		return
+	}
+	// Читаем переменную среды для порта
+	port := utils.GetServerPort()
+	dbFile := utils.GetDBPort()
+
+	log.SetFormatter(&log.JSONFormatter{})
+
+	// Инициализируем БД
+	db, err := database.NewSqliteDB(dbFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"migration": "migration error",
+		}).Errorf("error: %v", err)
+		return
+	}
+
+	// Подключаем CHI router
+	router := chi.NewRouter()
+	router.Use(middleware.Logger)
+
+	router.Route("/api", func(router chi.Router) {
+
+		router.Use(handlers.AuthMiddleware)
+
+		router.Post("/task", handlers.AddTask(db))
+		router.Get("/tasks", handlers.GetTasks(db))
+		router.Get("/task", handlers.GetTask(db))
+		router.Put("/task", handlers.PutTask(db))
+		router.Post("/task/done", handlers.DoneTask(db))
+		router.Delete("/task", handlers.DeleteTask(db))
+	})
+
+	router.Post("/api/signin", handlers.Signin)
+	router.Get("/api/nextdate", handlers.NextDayHandler)
+
+	handlers.FileServer(router, "/", frontendDir)
+
+	log.WithFields(log.Fields{
+		"server status": "starting",
+	}).Info("starting on port ", port)
+
+	// Запускаем сервер
+	if err := http.ListenAndServe(port, router); err != nil {
+		fmt.Printf("Ошибка при запуске сервера: %s", err.Error())
+		return
+	}
+
+}
