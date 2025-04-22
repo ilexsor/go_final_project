@@ -30,8 +30,8 @@ jobs:
 
     - name: Run local server
       run: |
-        CGO_ENABLED=1 GOOS=linux go run main.go &
-        sleep 100
+        CGO_ENABLED=1 GOOS=linux go run ./cmd/app/main.go &
+        sleep 10
         go test -count=1 -run ^TestApp$ ./tests
         
         
